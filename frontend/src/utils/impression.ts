@@ -95,7 +95,115 @@ export function imprimerRecu(vente: Vente): void {
   setTimeout(() => { win.print(); win.close() }, 300)
 }
 
-// ── Facture officielle A4 ─────────────────────────────────────
+// ── Reçu d'apurement de crédit ───────────────────────────────
+export function imprimerRecuApurement(
+  client: Client,
+  montantPaye: number,
+  creditAvant: number,
+  creditApres: number,
+  date: string = new Date().toISOString().slice(0, 10)
+): void {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8"/>
+      <title>Reçu Apurement - ${client.nom}</title>
+      <style>
+        @page { size: 80mm auto; margin: 4mm; }
+        * { box-sizing: border-box; }
+        body {
+          font-family: 'Courier New', monospace;
+          font-size: 11px;
+          width: 72mm;
+          margin: 0 auto;
+          color: #000;
+        }
+        .center  { text-align: center; }
+        .bold    { font-weight: bold; }
+        .sep     { border-top: 1px dashed #000; margin: 4px 0; }
+        .sep2    { border-top: 2px solid #000; margin: 4px 0; }
+        table    { width: 100%; border-collapse: collapse; margin: 8px 0; }
+        td       { padding: 4px 0; }
+        .highlight { background: #000; color: #fff; padding: 6px; font-weight: bold; font-size: 14px; margin: 8px 0; }
+        .footer  { font-size: 9px; text-align: center; margin-top: 12px; }
+        .success { background: #2d5016; color: #fff; padding: 8px; margin: 8px 0; font-weight: bold; text-align: center; }
+      </style>
+    </head>
+    <body>
+      <div class="center bold" style="font-size:16px;margin-bottom:2px">🐟 Poissonnerie Tata</div>
+      <div class="center" style="font-size:9px">Conakry — Guinée</div>
+      <div class="sep2"></div>
+      
+      <div class="center bold" style="font-size:13px;margin:8px 0">REÇU DE PAIEMENT</div>
+      
+      <div class="sep"></div>
+      <div>Date : <b>${new Date(date).toLocaleDateString('fr-FR')}</b></div>
+      <div>Heure : <b>${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</b></div>
+      
+      <div class="sep"></div>
+      <div style="font-size:10px;color:#555">CLIENT</div>
+      <div><b>${client.nom}</b></div>
+      ${client.telephone ? `<div style="font-size:10px">Tél : ${client.telephone}</div>` : ''}
+      
+      <div class="sep2" style="margin-top:12px"></div>
+      
+      <table>
+        <tr>
+          <td>Dette avant paiement</td>
+          <td style="text-align:right;font-weight:bold">${fmt(creditAvant)} GNF</td>
+        </tr>
+        <tr>
+          <td><b>Montant payé</b></td>
+          <td style="text-align:right;font-weight:bold;font-size:13px">-${fmt(montantPaye)} GNF</td>
+        </tr>
+      </table>
+      
+      <div class="sep2"></div>
+      
+      ${creditApres > 0 ? `
+      <div class="highlight">
+        <div style="display:flex;justify-content:space-between">
+          <span>RESTE À PAYER</span>
+          <span>${fmt(creditApres)} GNF</span>
+        </div>
+      </div>` : `
+      <div class="success">
+        ✓ DETTE INTÉGRALEMENT RÉGLÉE
+      </div>`}
+      
+      <div class="sep"></div>
+      
+      ${creditApres > 0 ? `
+      <table style="font-size:10px;margin-top:8px">
+        <tr>
+          <td>Plafond crédit</td>
+          <td style="text-align:right">${fmt(client.plafondCredit)} GNF</td>
+        </tr>
+        <tr>
+          <td>Crédit disponible</td>
+          <td style="text-align:right;font-weight:bold;color:#2d5016">${fmt(client.plafondCredit - creditApres)} GNF</td>
+        </tr>
+      </table>` : ''}
+      
+      <div class="sep2"></div>
+      <div class="footer">
+        Merci pour votre paiement !<br/>
+        <b>Poissonnerie Tata</b><br/>
+        Document généré le ${new Date().toLocaleString('fr-FR')}
+      </div>
+    </body>
+    </html>`
+
+  const win = window.open('', '_blank', 'width=400,height=600')
+  if (!win) { alert('Autorisez les popups pour imprimer'); return }
+  win.document.write(html)
+  win.document.close()
+  win.focus()
+  setTimeout(() => { win.print(); win.close() }, 300)
+}
+
+
 export function imprimerFactureA4(vente: Vente, client?: Client | null): void {
   const lignesHtml = vente.lignes.map((l, i) => `
     <tr style="background:${i % 2 === 0 ? '#f8f9fa' : '#fff'}">

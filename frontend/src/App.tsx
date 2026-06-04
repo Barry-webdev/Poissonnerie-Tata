@@ -10,6 +10,7 @@ import { StockFrigo } from './views/StockFrigo'
 import { Avaries }    from './views/Avaries'
 import { Parametres } from './views/Parametres'
 import { Rapports }   from './views/Rapports'
+import { Login }      from './views/Login'
 import { useAuth }    from './hooks/useAuth'
 
 import { getProduits, deduireStock, mettreAJourPAMP, ajouterProduit } from './services/produitService'
@@ -29,7 +30,7 @@ import type {
 
 export default function App() {
   // ── Auth ────────────────────────────────────────────────────
-  const { user: userProfile, logout } = useAuth()
+  const { user: userProfile, loading: authLoading, logout } = useAuth()
 
   // ── Navigation ──────────────────────────────────────────────
   const [activeView, setActiveView] = useState<string>('dashboard')
@@ -52,6 +53,8 @@ export default function App() {
 
   // ── Chargement initial ────────────────────────────────────────
   useEffect(() => {
+    if (!userProfile) return
+
     async function loadData() {
       try {
         const [p, v, c, a] = await Promise.all([
@@ -66,10 +69,11 @@ export default function App() {
         setAvaries(a)
       } catch (err) {
         console.error('Erreur chargement données:', err)
+        setError('Erreur de chargement des données')
       }
     }
     loadData()
-  }, [])
+  }, [userProfile])
 
   // ── Rechargement données après modification ───────────────────
   const reloadData = useCallback(async () => {
@@ -107,13 +111,28 @@ export default function App() {
       resteAPayer === 0        ? 'payé'    :
       modeReglement === 'Crédit' ? 'crédit' : 'partiel'
 
-    // 2. Vérification plafond crédit (Propriété 3) — Exigence 3.4
-    if (modeReglement === 'Crédit' && clientSelectionne) {
+    // 2. Vérification plafond crédit pour TOUT impayé (pas seulement mode Crédit) — Exigence 3.4
+    if (clientSelectionne && resteAPayer > 0) {
       const disponible = clientSelectionne.plafondCredit - clientSelectionne.creditEnCours
+      console.log('🔍 Vérification plafond crédit:', {
+        clientNom: clientSelectionne.nom,
+        creditEnCours: clientSelectionne.creditEnCours,
+        resteAPayer: resteAPayer,
+        plafond: clientSelectionne.plafondCredit,
+        disponible: disponible,
+        depassera: resteAPayer > disponible
+      })
+      
       if (resteAPayer > disponible) {
-        setError('Plafond crédit dépassé pour ce client')
+        setError(`Plafond crédit dépassé : ${clientSelectionne.nom} a ${clientSelectionne.creditEnCours.toLocaleString()} GNF de dette, +${resteAPayer.toLocaleString()} GNF dépasserait le plafond de ${clientSelectionne.plafondCredit.toLocaleString()} GNF`)
         return
       }
+    }
+
+    // 3. Si reste à payer sans client sélectionné → Erreur
+    if (!clientSelectionne && resteAPayer > 0) {
+      setError('Veuillez sélectionner un client pour une vente avec reste à payer')
+      return
     }
 
     setLoading(true)
@@ -144,9 +163,25 @@ export default function App() {
         statut,
       })
 
-      // 6. Mise à jour crédit client si vente à crédit — Exigence 4.4
-      if (modeReglement === 'Crédit' && clientSelectionne && resteAPayer > 0) {
-        await incrementerCredit(clientSelectionne.id, resteAPayer)
+      // 6. Mise à jour crédit client si reste à payer — Exigence 4.4
+      // Incrémenter le crédit pour TOUS les impayés (Crédit + Partiels)
+      if (clientSelectionne && resteAPayer > 0) {
+        console.log('💳 Incrémentation crédit (tout impayé):', {
+          clientId: clientSelectionne.id,
+          clientNom: clientSelectionne.nom,
+          montant: resteAPayer,
+          modeReglement: modeReglement,
+          creditActuel: clientSelectionne.creditEnCours,
+          plafond: clientSelectionne.plafondCredit
+        })
+        try {
+          await incrementerCredit(clientSelectionne.id, resteAPayer)
+          console.log('✅ Crédit incrémenté avec succès')
+        } catch (creditErr) {
+          console.error('❌ ERREUR incrémentation crédit:', creditErr)
+          // Ne pas bloquer la vente si l'incrémentation échoue, mais afficher l'erreur
+          setError(`Vente enregistrée mais erreur crédit: ${(creditErr as Error).message}`)
+        }
       }
 
       // 7. Reset panier — Exigence 4.5
@@ -169,8 +204,17 @@ export default function App() {
 
   // ── Apurement crédit ──────────────────────────────────────────
   const handleApurerCredit = useCallback(async (clientId: string, montant: number): Promise<void> => {
-    await apurerCredit(clientId, montant)
-    await reloadData()
+    console.log('💵 Apurement crédit:', { clientId, montant })
+    try {
+      await apurerCredit(clientId, montant)
+      console.log('✅ Crédit apuré avec succès')
+      await reloadData()
+      console.log('✅ Données rechargées')
+    } catch (error) {
+      console.error('❌ Erreur apurement crédit:', error)
+      setError(`Erreur lors de l'apurement : ${(error as Error).message}`)
+      throw error
+    }
   }, [reloadData])
 
   // ── Ajout d'avarie ────────────────────────────────────────────
@@ -235,10 +279,28 @@ export default function App() {
     await reloadData()
   }, [reloadData])
 
+  // ── Affichage conditionnel ───────────────────────────────────
+
+  // Écran de chargement initial
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-[#1A365D]">
+        <div className="text-center">
+          <div className="inline-block w-12 h-12 border-4 border-[#ECC94B]/30 border-t-[#ECC94B] rounded-full animate-spin mb-4" />
+          <p className="text-white text-sm font-semibold">Chargement...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Écran de connexion si non authentifié
+  if (!userProfile) {
+    return <Login />
+  }
+
   // ── Rendu ─────────────────────────────────────────────────────
   return (
     <div className="flex h-screen overflow-hidden bg-[#4A5568] text-white" style={{ fontFamily: "system-ui, 'Segoe UI', Roboto, sans-serif" }}>
-      {/* Sidebar — Exigences 15.1, 15.4 */}
       <Sidebar
         activeView={activeView}
         setActiveView={setActiveView}

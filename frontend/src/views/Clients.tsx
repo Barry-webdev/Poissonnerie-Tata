@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react'
-import { Search, Plus, CheckCircle, Users, X } from 'lucide-react'
+import { Search, Plus, CheckCircle, Users, X, Printer } from 'lucide-react'
 import { Topbar } from '../components/Topbar'
 import { Badge } from '../components/Badge'
+import { imprimerRecuApurement } from '../utils/impression'
 import type { Client } from '../types/pos'
 
 const fmt = (n: number) => Number(n).toLocaleString('fr-FR')
@@ -31,15 +32,46 @@ export function Clients({ clients, onApurerCredit, onAjouterClient }: ClientsPro
     [clients, recherche]
   )
 
+  // Calcul du total crédit : somme des creditEnCours de tous les clients
   const totalCredit = useMemo(() => clients.reduce((s, c) => s + c.creditEnCours, 0), [clients])
+  
+  // Nombre de clients en retard/bloqué
+  const clientsEnRetard = useMemo(() => clients.filter(c => c.statut !== 'actif').length, [clients])
 
-  const handleApurer = async (id: string) => {
+  const handleApurer = async (id: string, withPrint: boolean = false) => {
     const montant = parseFloat(paiements[id] || '0')
-    if (!montant || montant <= 0) return
+    if (!montant || montant <= 0) {
+      console.warn('⚠️ Montant invalide:', montant)
+      return
+    }
+    
+    // Trouver le client et stocker son état AVANT l'apurement
+    const client = clients.find(c => c.id === id)
+    if (!client) {
+      console.error('❌ Client introuvable:', id)
+      return
+    }
+    
+    const creditAvant = client.creditEnCours
+    const creditApres = Math.max(0, creditAvant - montant)
+    
+    console.log('💵 Début apurement:', { clientId: id, montant, creditAvant, creditApres })
     setLoadingId(id)
+    
     try {
       await onApurerCredit(id, montant)
+      console.log('✅ Apurement terminé avec succès')
+      
+      // Imprimer le reçu si demandé
+      if (withPrint) {
+        console.log('🖨️ Impression du reçu d\'apurement...')
+        imprimerRecuApurement(client, montant, creditAvant, creditApres)
+      }
+      
       setPaiements(prev => ({ ...prev, [id]: '' }))
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'apurement:', error)
+      alert(`Erreur: ${(error as Error).message}`)
     } finally {
       setLoadingId(null)
     }
@@ -77,9 +109,9 @@ export function Clients({ clients, onApurerCredit, onAjouterClient }: ClientsPro
         {/* KPI */}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: 'Total clients',    value: clients.length,                                   color: 'text-white' },
-            { label: 'En retard/bloqué', value: clients.filter(c => c.statut !== 'actif').length, color: 'text-[#ECC94B]' },
-            { label: 'Encours total',    value: `${fmt(totalCredit)} GNF`,                        color: 'text-red-400' },
+            { label: 'Total clients',    value: clients.length,      color: 'text-white' },
+            { label: 'En retard/bloqué', value: clientsEnRetard,     color: 'text-[#ECC94B]' },
+            { label: 'Encours total',    value: `${fmt(totalCredit)} GNF`, color: 'text-red-400' },
           ].map(item => (
             <div key={item.label} className="bg-[#2D3748] rounded-xl p-4 border border-[#4A5568] flex items-center gap-3">
               <Users size={18} className="text-slate-400 shrink-0" />
@@ -177,10 +209,16 @@ export function Clients({ clients, onApurerCredit, onAjouterClient }: ClientsPro
                         placeholder="Ex: 200000"
                         className="w-36 bg-[#1A365D]/60 border border-[#4A5568] focus:border-[#ECC94B] text-white text-xs px-3 py-1.5 rounded-lg outline-none placeholder:text-slate-500" />
                     </div>
-                    <button onClick={() => handleApurer(c.id)} disabled={!paiements[c.id] || loadingId === c.id}
+                    <button onClick={() => handleApurer(c.id, false)} disabled={!paiements[c.id] || loadingId === c.id}
                       className="flex items-center gap-1.5 bg-green-700 hover:bg-green-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-1.5 rounded-lg cursor-pointer transition-colors">
                       <CheckCircle size={12} />
                       {loadingId === c.id ? '...' : 'Apurer'}
+                    </button>
+                    <button onClick={() => handleApurer(c.id, true)} disabled={!paiements[c.id] || loadingId === c.id}
+                      className="flex items-center gap-1.5 bg-blue-700 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-1.5 rounded-lg cursor-pointer transition-colors"
+                      title="Apurer et imprimer le reçu">
+                      <Printer size={12} />
+                      {loadingId === c.id ? '...' : 'Apurer + Reçu'}
                     </button>
                   </div>
                 </div>

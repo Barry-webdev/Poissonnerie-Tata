@@ -22,7 +22,10 @@ export function Caisse({ ventes }: CaisseProps) {
     const ventesJour = ventes.filter(v => v.dateStr === today)
     const especes    = ventesJour.filter(v => v.modeReglement === 'Espèces').reduce((s, v) => s + v.montantEncaisse, 0)
     const virement   = ventesJour.filter(v => v.modeReglement === 'Virement').reduce((s, v) => s + v.montantEncaisse, 0)
-    const credit     = ventesJour.filter(v => v.modeReglement === 'Crédit').reduce((s, v) => s + v.totalNet, 0)
+    
+    // CORRECTION : Calculer le total des restes à payer (peu importe le mode de règlement)
+    const credit = ventesJour.reduce((s, v) => s + v.resteAPayer, 0)
+    
     // Exigence 7.1 : caisse = espèces + virement UNIQUEMENT (hors crédit)
     const caisseJour = especes + virement
     return { ventesJour, especes, virement, credit, caisseJour }
