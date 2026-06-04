@@ -3,19 +3,20 @@ import { Search, Plus, CheckCircle, Users, X, Printer } from 'lucide-react'
 import { Topbar } from '../components/Topbar'
 import { Badge } from '../components/Badge'
 import { imprimerRecuApurement } from '../utils/impression'
-import type { Client } from '../types/pos'
+import type { Client, RoleUser } from '../types/pos'
 
 const fmt = (n: number) => Number(n).toLocaleString('fr-FR')
 
-interface ClientsProps {
+export interface ClientsProps {
   clients:          Client[]
   onApurerCredit:   (clientId: string, montant: number) => Promise<void>
   onAjouterClient?: (data: Omit<Client, 'id' | 'createdAt' | 'updatedAt' | 'historique'>) => Promise<void>
+  userRole?:        RoleUser  // Rôle de l'utilisateur connecté
 }
 
 const FORM_INIT = { nom: '', telephone: '', plafondCredit: '1000000' }
 
-export function Clients({ clients, onApurerCredit, onAjouterClient }: ClientsProps) {
+export function Clients({ clients, onApurerCredit, onAjouterClient, userRole = 'caissier' }: ClientsProps) {
   const [recherche, setRecherche] = useState('')
   const [paiements, setPaiements] = useState<Record<string, string>>({})
   const [loadingId, setLoadingId] = useState<string | null>(null)
@@ -23,6 +24,9 @@ export function Clients({ clients, onApurerCredit, onAjouterClient }: ClientsPro
   const [form, setForm]           = useState(FORM_INIT)
   const [saving, setSaving]       = useState(false)
   const [formErr, setFormErr]     = useState('')
+
+  // Vérifier si l'utilisateur est gérant/admin
+  const isManager = userRole === 'gerant' || userRole === 'admin'
 
   const clientsFiltres = useMemo(
     () => clients.filter(c =>
@@ -106,35 +110,39 @@ export function Clients({ clients, onApurerCredit, onAjouterClient }: ClientsPro
       <Topbar titre="Clients & Crédits" sous="Gestion des encours et remboursements" recherche={recherche} setRecherche={setRecherche} showSearch />
 
       <div className="flex-1 overflow-y-auto p-5 space-y-4">
-        {/* KPI */}
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: 'Total clients',    value: clients.length,      color: 'text-white' },
-            { label: 'En retard/bloqué', value: clientsEnRetard,     color: 'text-[#ECC94B]' },
-            { label: 'Encours total',    value: `${fmt(totalCredit)} GNF`, color: 'text-red-400' },
-          ].map(item => (
-            <div key={item.label} className="bg-[#2D3748] rounded-xl p-4 border border-[#4A5568] flex items-center gap-3">
-              <Users size={18} className="text-slate-400 shrink-0" />
-              <div>
-                <p className="text-slate-400 text-[11px]">{item.label}</p>
-                <p className={`font-extrabold text-sm ${item.color}`}>{item.value}</p>
+        {/* KPI - Uniquement pour gérants/admins */}
+        {isManager && (
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: 'Total clients',    value: clients.length,      color: 'text-white' },
+              { label: 'En retard/bloqué', value: clientsEnRetard,     color: 'text-[#ECC94B]' },
+              { label: 'Encours total',    value: `${fmt(totalCredit)} GNF`, color: 'text-red-400' },
+            ].map(item => (
+              <div key={item.label} className="bg-[#2D3748] rounded-xl p-4 border border-[#4A5568] flex items-center gap-3">
+                <Users size={18} className="text-slate-400 shrink-0" />
+                <div>
+                  <p className="text-slate-400 text-[11px]">{item.label}</p>
+                  <p className={`font-extrabold text-sm ${item.color}`}>{item.value}</p>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
-        {/* Barre outils */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => { setShowForm(f => !f); setFormErr('') }}
-            className="flex items-center gap-1.5 bg-[#ECC94B] hover:bg-amber-500 text-[#1A365D] text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer transition-colors ml-auto"
-          >
-            <Plus size={12} /> Nouveau Client
-          </button>
-        </div>
+        {/* Barre outils - Bouton "Nouveau Client" uniquement pour gérants/admins */}
+        {isManager && (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => { setShowForm(f => !f); setFormErr('') }}
+              className="flex items-center gap-1.5 bg-[#ECC94B] hover:bg-amber-500 text-[#1A365D] text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer transition-colors ml-auto"
+            >
+              <Plus size={12} /> Nouveau Client
+            </button>
+          </div>
+        )}
 
-        {/* Formulaire nouveau client */}
-        {showForm && (
+        {/* Formulaire nouveau client - Uniquement pour gérants/admins */}
+        {isManager && showForm && (
           <div className="bg-[#2D3748] rounded-xl border border-[#4A5568] p-4 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-white font-semibold text-sm">Nouveau Client</h3>

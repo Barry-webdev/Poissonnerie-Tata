@@ -6,7 +6,7 @@ export type ModeReglement    = 'Espèces' | 'Virement' | 'Crédit'
 export type StatutVente      = 'payé' | 'crédit' | 'partiel' | 'retard'
 export type StatutClient     = 'actif' | 'retard' | 'bloque'
 export type TypeUnite        = 'Carton' | 'Kg'
-export type RoleUser         = 'gerant' | 'caissier'
+export type RoleUser         = 'gerant' | 'caissier' | 'admin'
 export type CategoriePoisson = 'Pélagique' | 'Démersal' | 'Fumé' | string
 
 export interface Produit {

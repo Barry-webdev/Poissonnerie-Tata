@@ -3,7 +3,7 @@ import { Plus, X } from 'lucide-react'
 import { Topbar }      from '../components/Topbar'
 import { ProductCard } from '../components/ProductCard'
 import { CartSection } from '../components/CartSection'
-import type { Produit, Client, CartItem, ModeReglement, TypeUnite } from '../types/pos'
+import type { Produit, Client, CartItem, ModeReglement, TypeUnite, RoleUser } from '../types/pos'
 
 // ── Catégories prédéfinies ────────────────────────────────────
 const CATEGORIES = ['Pélagique', 'Démersal', 'Fumé', 'Crustacés', 'Autre']
@@ -36,6 +36,7 @@ interface CatalogueProps {
   onAjouterProduit:     (data: Omit<Produit, 'id' | 'updatedAt'>) => Promise<void>
   loading:              boolean
   alertCount?:          number
+  userRole?:            RoleUser  // Rôle de l'utilisateur connecté
 }
 
 export function Catalogue({
@@ -45,6 +46,7 @@ export function Catalogue({
   encaissement, setEncaissement,
   onValiderVente, onAjouterProduit,
   loading, alertCount = 0,
+  userRole = 'caissier',
 }: CatalogueProps) {
   const [recherche, setRecherche]           = useState('')
   const [categorieActive, setCategorieActive] = useState('Tous')
@@ -52,6 +54,9 @@ export function Catalogue({
   const [form, setForm]                     = useState(FORM_INIT)
   const [saving, setSaving]                 = useState(false)
   const [formError, setFormError]           = useState<string | null>(null)
+
+  // Vérifier si l'utilisateur est gérant/admin
+  const isManager = userRole === 'gerant' || userRole === 'admin'
 
   // Produits actifs filtrés
   const filtres = useMemo(
@@ -178,12 +183,15 @@ export function Catalogue({
             ))}
             <div className="ml-auto flex items-center gap-2">
               <span className="text-slate-400 text-[11px]">{produitsFiltres.length} produit(s)</span>
-              <button
-                onClick={() => setShowModal(true)}
-                className="flex items-center gap-1 bg-[#ECC94B] hover:bg-amber-500 text-[#1A365D] text-[11px] font-bold px-3 py-1.5 rounded-lg cursor-pointer transition-colors"
-              >
-                <Plus size={11} /> Nouveau produit
-              </button>
+              {/* Bouton Nouveau Produit - Uniquement pour gérants/admins */}
+              {isManager && (
+                <button
+                  onClick={() => setShowModal(true)}
+                  className="flex items-center gap-1 bg-[#ECC94B] hover:bg-amber-500 text-[#1A365D] text-[11px] font-bold px-3 py-1.5 rounded-lg cursor-pointer transition-colors"
+                >
+                  <Plus size={11} /> Nouveau produit
+                </button>
+              )}
             </div>
           </div>
 
@@ -215,8 +223,8 @@ export function Catalogue({
         loading={loading}
       />
 
-      {/* ── MODAL Nouveau Produit ─────────────────────────────── */}
-      {showModal && (
+      {/* ── MODAL Nouveau Produit - Uniquement pour gérants/admins ─────────────────────────────── */}
+      {isManager && showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="bg-[#1A365D] rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
             {/* Header modal */}

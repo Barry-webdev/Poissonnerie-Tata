@@ -35,6 +35,42 @@ export default function App() {
   // ── Navigation ──────────────────────────────────────────────
   const [activeView, setActiveView] = useState<string>('dashboard')
 
+  // Rediriger automatiquement le caissier vers "catalogue" au login
+  useEffect(() => {
+    if (userProfile && userProfile.role === 'caissier') {
+      console.log('👤 Caissier connecté → Redirection vers Catalogue')
+      setActiveView('catalogue')
+    }
+  }, [userProfile])
+
+  // Vérifier si l'utilisateur a accès à la vue actuelle
+  const hasAccess = useMemo(() => {
+    if (!userProfile) return false
+    
+    const roleAccess: Record<string, string[]> = {
+      'dashboard':  ['gerant', 'admin'],
+      'catalogue':  ['gerant', 'admin', 'caissier'],
+      'ventes':     ['gerant', 'admin', 'caissier'],
+      'caisse':     ['gerant', 'admin'],
+      'clients':    ['gerant', 'admin', 'caissier'],
+      'frigo':      ['gerant', 'admin'],
+      'avaries':    ['gerant', 'admin'],
+      'rapports':   ['gerant', 'admin'],
+      'parametres': ['gerant', 'admin'],
+    }
+    
+    const allowedRoles = roleAccess[activeView] || []
+    return allowedRoles.includes(userProfile.role)
+  }, [userProfile, activeView])
+
+  // Rediriger si l'utilisateur n'a pas accès à la vue
+  useEffect(() => {
+    if (userProfile && !hasAccess) {
+      console.warn(`⚠️ Accès refusé à ${activeView} pour ${userProfile.role}`)
+      setActiveView(userProfile.role === 'caissier' ? 'catalogue' : 'dashboard')
+    }
+  }, [userProfile, activeView, hasAccess])
+
   // ── Données globales ─────────────────────────────────────────
   const [produits, setProduits] = useState<Produit[]>([])
   const [ventes,   setVentes]   = useState<Vente[]>([])
@@ -345,6 +381,7 @@ export default function App() {
             onAjouterProduit={handleAjouterProduit}
             loading={loading}
             alertCount={alertCount}
+            userRole={userProfile?.role ?? 'caissier'}
           />
         )}
 
@@ -361,6 +398,7 @@ export default function App() {
             clients={clients}
             onApurerCredit={handleApurerCredit}
             onAjouterClient={handleAjouterClient}
+            userRole={userProfile?.role ?? 'caissier'}
           />
         )}
 

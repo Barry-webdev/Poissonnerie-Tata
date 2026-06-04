@@ -7,19 +7,22 @@ import {
 } from 'lucide-react'
 import type { SidebarProps } from '../types/pos'
 
-const NAV_ITEMS = [
-  { id: 'dashboard',  label: 'Dashboard',         icon: LayoutDashboard },
-  { id: 'catalogue',  label: 'Catalogue Produits', icon: Package },
-  { id: 'ventes',     label: 'Ventes',             icon: ShoppingCart },
-  { id: 'caisse',     label: 'Caisse Journalière', icon: CreditCard },
-  { id: 'clients',    label: 'Clients & Crédits',  icon: Users },
-  { id: 'frigo',      label: 'Stock Frigo',        icon: Thermometer },
-  { id: 'avaries',    label: 'Avaries & Pertes',   icon: AlertTriangle },
-  { id: 'rapports',   label: 'Rapports',           icon: BarChart2 },
-  { id: 'parametres', label: 'Paramètres',         icon: Settings },
+const ALL_NAV_ITEMS = [
+  { id: 'dashboard',  label: 'Dashboard',         icon: LayoutDashboard, roles: ['gerant', 'admin'] },
+  { id: 'catalogue',  label: 'Catalogue Produits', icon: Package,        roles: ['gerant', 'admin', 'caissier'] },
+  { id: 'ventes',     label: 'Ventes',             icon: ShoppingCart,   roles: ['gerant', 'admin', 'caissier'] },
+  { id: 'caisse',     label: 'Caisse Journalière', icon: CreditCard,     roles: ['gerant', 'admin'] },
+  { id: 'clients',    label: 'Clients & Crédits',  icon: Users,          roles: ['gerant', 'admin', 'caissier'] },
+  { id: 'frigo',      label: 'Stock Frigo',        icon: Thermometer,    roles: ['gerant', 'admin'] },
+  { id: 'avaries',    label: 'Avaries & Pertes',   icon: AlertTriangle,  roles: ['gerant', 'admin'] },
+  { id: 'rapports',   label: 'Rapports',           icon: BarChart2,      roles: ['gerant', 'admin'] },
+  { id: 'parametres', label: 'Paramètres',         icon: Settings,       roles: ['gerant', 'admin'] },
 ]
 
 export function Sidebar({ activeView, setActiveView, userProfile, onLogout }: SidebarProps) {
+  // Filtrer les éléments de navigation selon le rôle de l'utilisateur
+  const userRole = userProfile?.role ?? 'caissier'
+  const NAV_ITEMS = ALL_NAV_ITEMS.filter(item => item.roles.includes(userRole))
   const initiales = userProfile?.displayName
     ? userProfile.displayName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
     : 'AT'
