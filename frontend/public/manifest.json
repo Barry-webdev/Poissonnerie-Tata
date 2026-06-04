@@ -1,0 +1,22 @@
+{
+  "name": "Poissonnerie Tata — ERP/POS",
+  "short_name": "Tata POS",
+  "description": "Système de gestion commerciale Poissonnerie Tata",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#1A365D",
+  "background_color": "#1A365D",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "screenshots": []
+}
