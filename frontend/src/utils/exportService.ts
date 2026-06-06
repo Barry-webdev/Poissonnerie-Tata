@@ -1020,3 +1020,256 @@ export async function exportWordInventaire(produits: Produit[], valorisation: nu
   const buf = await Packer.toBlob(doc)
   saveAs(buf, `inventaire_frigo_${new Date().toISOString().slice(0,10)}.docx`)
 }
+
+
+// ═══════════════════════════════════════════════
+// ██  IMPRESSION NAVIGATEUR (fenêtre propre)
+// ═══════════════════════════════════════════════
+
+function buildPrintHtml(
+  titre: string,
+  sous: string,
+  logoBase64: string | undefined,
+  kpis: { label: string; valeur: string; couleur: string }[],
+  tableHead: string[],
+  tableBody: string[][],
+  totaux?: { label: string; valeur: string }[]
+): string {
+  const logoHtml = logoBase64
+    ? `<img src="${logoBase64}" alt="Logo" style="width:56px;height:56px;border-radius:10px;object-fit:cover;margin-right:16px;">`
+    : ''
+
+  const kpisHtml = kpis.map(k => `
+    <div style="flex:1;background:#f7fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 18px;text-align:center;min-width:120px">
+      <div style="font-size:9px;text-transform:uppercase;color:#718096;font-weight:700;margin-bottom:6px">${k.label}</div>
+      <div style="font-size:18px;font-weight:900;color:${k.couleur}">${k.valeur}</div>
+    </div>`).join('')
+
+  const theadHtml = tableHead.map(h => `<th>${h}</th>`).join('')
+  const tbodyHtml = tableBody.map((row, i) =>
+    `<tr style="background:${i % 2 === 0 ? '#fff' : '#f7fafc'}">${row.map(c => `<td>${c}</td>`).join('')}</tr>`
+  ).join('')
+
+  const totauxHtml = totaux ? `
+    <div style="margin-top:20px;border-top:2px solid #1A365D;padding-top:14px">
+      <table style="width:320px;margin-left:auto;border-collapse:collapse">
+        ${totaux.map(t => `
+          <tr>
+            <td style="padding:5px 12px;font-size:12px;color:#4A5568">${t.label}</td>
+            <td style="padding:5px 12px;font-size:13px;font-weight:700;color:#1A365D;text-align:right">${t.valeur}</td>
+          </tr>`).join('')}
+      </table>
+    </div>` : ''
+
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <title>${titre} — Poissonnerie Tata</title>
+  <style>
+    @page { size: A4; margin: 15mm; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; color: #1a202c; background: #fff; }
+
+    .header { background: #1A365D; color: #fff; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; border-radius: 0 0 8px 8px; margin-bottom: 20px; }
+    .header-left { display: flex; align-items: center; }
+    .header-brand { font-size: 20px; font-weight: 900; letter-spacing: 1px; }
+    .header-sub { font-size: 10px; color: #a0aec0; margin-top: 2px; }
+    .header-badge { background: #ECC94B; color: #1A365D; padding: 6px 16px; border-radius: 6px; font-size: 11px; font-weight: 700; text-align: center; }
+    .header-date { font-size: 9px; color: #a0aec0; text-align: center; margin-top: 4px; }
+
+    .rapport-titre { font-size: 15px; font-weight: 700; color: #1A365D; margin-bottom: 4px; }
+    .rapport-sous { font-size: 11px; color: #718096; font-style: italic; margin-bottom: 16px; }
+
+    .kpis { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+
+    table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 11px; }
+    thead tr { background: #1A365D; color: #fff; }
+    thead th { padding: 9px 10px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+    tbody td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; }
+
+    .footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 9px; color: #a0aec0; text-align: center; }
+
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      ${logoHtml}
+      <div>
+        <div class="header-brand">POISSONNERIE TATA</div>
+        <div class="header-sub">Conakry — Guinée &nbsp;|&nbsp; +224 623 89 73 81</div>
+      </div>
+    </div>
+    <div>
+      <div class="header-badge">${titre.toUpperCase()}</div>
+      <div class="header-date">Généré le ${now()}</div>
+    </div>
+  </div>
+
+  <div class="rapport-titre">${titre}</div>
+  <div class="rapport-sous">${sous}</div>
+
+  <div class="kpis">${kpisHtml}</div>
+
+  <table>
+    <thead><tr>${theadHtml}</tr></thead>
+    <tbody>${tbodyHtml}</tbody>
+  </table>
+
+  ${totauxHtml}
+
+  <div class="footer">
+    Poissonnerie Tata — Document officiel — ${now()}
+  </div>
+</body>
+</html>`
+}
+
+function openPrintWindow(html: string) {
+  const win = window.open('', '_blank', 'width=900,height=700')
+  if (!win) { alert('Autorisez les popups pour imprimer'); return }
+  win.document.write(html)
+  win.document.close()
+  win.focus()
+  setTimeout(() => { win.print() }, 500)
+}
+
+export async function imprimerCaisse(
+  ventesJour: Vente[], especes: number, virement: number, credit: number,
+  logoUrl?: string
+) {
+  const logo = logoUrl ? await imageUrlToBase64(logoUrl).catch(() => undefined) : undefined
+  const dateAuj = new Date().toISOString().slice(0, 10)
+
+  const html = buildPrintHtml(
+    'Rapport de Caisse', `Journée du ${dateAuj}`, logo,
+    [
+      { label: 'Total Caisse Physique', valeur: `${fmt(especes + virement)} GNF`, couleur: '#276749' },
+      { label: 'Espèces',              valeur: `${fmt(especes)} GNF`,             couleur: '#1A365D' },
+      { label: 'Virement',             valeur: `${fmt(virement)} GNF`,            couleur: '#2b6cb0' },
+      { label: 'En Crédit',            valeur: `${fmt(credit)} GNF`,              couleur: '#b7791f' },
+    ],
+    ['Client', 'Mode', 'Encaissé (GNF)', 'Reste (GNF)', 'Statut'],
+    ventesJour.map(v => [
+      v.clientNom, v.modeReglement,
+      `<strong>${fmt(v.montantEncaisse)}</strong>`,
+      v.resteAPayer > 0 ? `<span style="color:#e53e3e">${fmt(v.resteAPayer)}</span>` : '0',
+      `<span style="background:${v.statut==='payé'?'#c6f6d5':v.statut==='crédit'?'#bee3f8':'#fed7d7'};color:${v.statut==='payé'?'#276749':v.statut==='crédit'?'#2c5282':'#9b2c2c'};padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700">${v.statut.toUpperCase()}</span>`,
+    ]),
+    [
+      { label: `${ventesJour.length} transaction(s)`, valeur: '' },
+      { label: 'Total encaissé', valeur: `${fmt(especes + virement)} GNF` },
+      { label: 'En crédit (hors caisse)', valeur: `${fmt(credit)} GNF` },
+    ]
+  )
+  openPrintWindow(html)
+}
+
+export async function imprimerVentes(
+  ventes: Vente[], ca: number, marge: number,
+  parMode: { especes: number; virement: number; credit: number },
+  periode: { debut: string; fin: string },
+  logoUrl?: string
+) {
+  const logo = logoUrl ? await imageUrlToBase64(logoUrl).catch(() => undefined) : undefined
+  const label = periode.debut && periode.fin ? `Du ${periode.debut} au ${periode.fin}` : 'Toutes périodes'
+
+  const html = buildPrintHtml(
+    'Analytique Ventes', label, logo,
+    [
+      { label: "Chiffre d'affaires", valeur: `${fmt(ca)} GNF`,    couleur: '#b7791f' },
+      { label: 'Marge brute',        valeur: `${fmt(marge)} GNF`, couleur: '#276749' },
+      { label: 'Nb ventes',          valeur: `${ventes.length}`,  couleur: '#1A365D' },
+      { label: 'Taux marge',         valeur: ca > 0 ? `${Math.round((marge/ca)*100)}%` : '0%', couleur: '#6b46c1' },
+    ],
+    ['#', 'Date', 'Client', 'Mode', 'Total Net (GNF)', 'Encaissé (GNF)', 'Reste (GNF)', 'Statut'],
+    ventes.map((v, i) => [
+      `${i+1}`, v.dateStr, v.clientNom, v.modeReglement,
+      `<strong>${fmt(v.totalNet)}</strong>`,
+      fmt(v.montantEncaisse),
+      v.resteAPayer > 0 ? `<span style="color:#e53e3e">${fmt(v.resteAPayer)}</span>` : '0',
+      v.statut.toUpperCase(),
+    ]),
+    [
+      { label: `${ventes.length} vente(s)`, valeur: '' },
+      { label: "Chiffre d'affaires total", valeur: `${fmt(ca)} GNF` },
+      { label: 'Encaissé (Esp. + Vir.)',   valeur: `${fmt(parMode.especes + parMode.virement)} GNF` },
+      { label: 'En crédit',                valeur: `${fmt(parMode.credit)} GNF` },
+    ]
+  )
+  openPrintWindow(html)
+}
+
+export async function imprimerCredits(
+  clients: Client[], totalEncours: number, logoUrl?: string
+) {
+  const logo = logoUrl ? await imageUrlToBase64(logoUrl).catch(() => undefined) : undefined
+  const sorted = [...clients].sort((a, b) => b.creditEnCours - a.creditEnCours)
+
+  const html = buildPrintHtml(
+    'Balance Crédits', `Situation au ${today()}`, logo,
+    [
+      { label: 'Clients concernés', valeur: `${clients.length}`,        couleur: '#b7791f' },
+      { label: 'Encours total',     valeur: `${fmt(totalEncours)} GNF`, couleur: '#e53e3e' },
+      { label: 'Comptes bloqués',   valeur: `${clients.filter(c=>c.statut==='bloque').length}`, couleur: '#e53e3e' },
+      { label: 'En retard',         valeur: `${clients.filter(c=>c.statut==='retard').length}`, couleur: '#d69e2e' },
+    ],
+    ['Client', 'Téléphone', 'Encours (GNF)', 'Plafond (GNF)', 'Utilisation', 'Statut'],
+    sorted.map(c => {
+      const pct = Math.round((c.creditEnCours / c.plafondCredit) * 100)
+      return [
+        `<strong>${c.nom}</strong>`,
+        c.telephone || '—',
+        `<span style="color:#e53e3e;font-weight:700">${fmt(c.creditEnCours)}</span>`,
+        fmt(c.plafondCredit),
+        `${pct}%`,
+        `<span style="background:${c.statut==='bloque'?'#fed7d7':'#fefcbf'};color:${c.statut==='bloque'?'#9b2c2c':'#744210'};padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700">${c.statut.toUpperCase()}</span>`,
+      ]
+    }),
+    [{ label: `${clients.length} client(s)`, valeur: '' }, { label: 'Encours total', valeur: `${fmt(totalEncours)} GNF` }]
+  )
+  openPrintWindow(html)
+}
+
+export async function imprimerInventaire(
+  produits: Produit[], valorisation: number, logoUrl?: string
+) {
+  const logo = logoUrl ? await imageUrlToBase64(logoUrl).catch(() => undefined) : undefined
+  const sorted = [...produits].sort((a, b) => a.stockCart - b.stockCart)
+  const stockKgTotal = produits.reduce((s, p) => s + p.stockKg, 0)
+
+  const html = buildPrintHtml(
+    'Inventaire Frigo', `État des stocks au ${today()}`, logo,
+    [
+      { label: 'Valorisation',    valeur: `${fmt(valorisation)} GNF`,  couleur: '#b7791f' },
+      { label: 'Stock Total',     valeur: `${fmt(stockKgTotal)} Kg`,   couleur: '#0987a0' },
+      { label: 'Nb Produits',     valeur: `${produits.length}`,        couleur: '#1A365D' },
+      { label: 'Alertes Rupture', valeur: `${produits.filter(p=>p.stockCart<=p.seuilAlerte).length}`, couleur: '#e53e3e' },
+    ],
+    ['Produit', 'Catégorie', 'Stock Cartons', 'Stock Kg', 'PAMP/Cart (GNF)', 'Valorisation (GNF)', 'État'],
+    sorted.map(p => {
+      const critique = p.stockCart <= p.seuilAlerte
+      return [
+        `${p.emoji} <strong>${p.nom}</strong>`,
+        p.categorie,
+        critique ? `<span style="color:#e53e3e;font-weight:700">${p.stockCart}</span>` : `${p.stockCart}`,
+        `${fmt(p.stockKg)} Kg`,
+        fmt(p.pampCart),
+        `<strong style="color:#b7791f">${fmt(p.stockCart * p.pampCart)}</strong>`,
+        critique
+          ? `<span style="background:#fed7d7;color:#9b2c2c;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700">⚠ RUPTURE</span>`
+          : `<span style="background:#c6f6d5;color:#276749;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700">✓ OK</span>`,
+      ]
+    }),
+    [
+      { label: `${produits.length} produit(s)`, valeur: '' },
+      { label: 'Stock total', valeur: `${fmt(stockKgTotal)} Kg` },
+      { label: 'Valorisation totale', valeur: `${fmt(valorisation)} GNF` },
+    ]
+  )
+  openPrintWindow(html)
+}

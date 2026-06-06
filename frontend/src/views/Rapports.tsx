@@ -8,6 +8,7 @@ import {
   exportPDFCaisse, exportPDFVentes, exportPDFCredits, exportPDFInventaire,
   exportExcelCaisse, exportExcelVentes, exportExcelCredits, exportExcelInventaire,
   exportWordCaisse, exportWordVentes, exportWordCredits, exportWordInventaire,
+  imprimerCaisse, imprimerVentes, imprimerCredits, imprimerInventaire,
 } from '../utils/exportService'
 
 const fmt = (n: number) => Number(n).toLocaleString('fr-FR')
@@ -188,7 +189,16 @@ export function Rapports({ produits, ventes, clients }: RapportsProps) {
 
             {/* Imprimer */}
             <button
-              onClick={() => window.print()}
+              onClick={async () => {
+                if (onglet === 'caisse')
+                  await imprimerCaisse(rapportCaisse.ventesJour, rapportCaisse.especes, rapportCaisse.virement, rapportCaisse.credit, logoTata)
+                else if (onglet === 'ventes')
+                  await imprimerVentes(ventesFiltrees, rapportVentes.ca, rapportVentes.marge, rapportVentes.parMode, { debut: dateDebut, fin: dateFin }, logoTata)
+                else if (onglet === 'credits')
+                  await imprimerCredits(rapportCredits.enRetard, rapportCredits.total, logoTata)
+                else if (onglet === 'inventaire')
+                  await imprimerInventaire(rapportInventaire.produits, rapportInventaire.valorisation, logoTata)
+              }}
               title="Imprimer"
               className="flex items-center gap-1.5 bg-[#1A365D] hover:bg-[#2A4A7F] text-white text-xs font-semibold px-3 py-2 rounded-xl cursor-pointer transition-colors border border-[#2A4A7F]"
             >
