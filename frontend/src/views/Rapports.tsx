@@ -1,8 +1,14 @@
 import React, { useState, useMemo } from 'react'
-import { FileText, Printer, TrendingUp, Wallet, Users, Snowflake } from 'lucide-react'
+import { FileText, Printer, TrendingUp, Wallet, Users, Snowflake, FileDown, TableProperties, BookText } from 'lucide-react'
 import { Topbar } from '../components/Topbar'
 import { Badge }  from '../components/Badge'
 import type { Produit, Vente, Client } from '../types/pos'
+import logoTata from '../assets/logo.jpeg'
+import {
+  exportPDFCaisse, exportPDFVentes, exportPDFCredits, exportPDFInventaire,
+  exportExcelCaisse, exportExcelVentes, exportExcelCredits, exportExcelInventaire,
+  exportWordCaisse, exportWordVentes, exportWordCredits, exportWordInventaire,
+} from '../utils/exportService'
 
 const fmt = (n: number) => Number(n).toLocaleString('fr-FR')
 
@@ -88,6 +94,42 @@ export function Rapports({ produits, ventes, clients }: RapportsProps) {
     window.print()
   }
 
+  // ── Exports PDF ───────────────────────────────────────────────
+  const handleExportPDF = async () => {
+    if (onglet === 'caisse')
+      await exportPDFCaisse(rapportCaisse.ventesJour, rapportCaisse.especes, rapportCaisse.virement, rapportCaisse.credit, logoTata)
+    else if (onglet === 'ventes')
+      await exportPDFVentes(ventesFiltrees, rapportVentes.ca, rapportVentes.marge, rapportVentes.topProduits, rapportVentes.parMode, { debut: dateDebut, fin: dateFin }, logoTata)
+    else if (onglet === 'credits')
+      await exportPDFCredits(rapportCredits.enRetard, rapportCredits.total, logoTata)
+    else if (onglet === 'inventaire')
+      await exportPDFInventaire(rapportInventaire.produits, rapportInventaire.valorisation, logoTata)
+  }
+
+  // ── Exports Excel ─────────────────────────────────────────────
+  const handleExportExcel = () => {
+    if (onglet === 'caisse')
+      exportExcelCaisse(rapportCaisse.ventesJour, rapportCaisse.especes, rapportCaisse.virement, rapportCaisse.credit)
+    else if (onglet === 'ventes')
+      exportExcelVentes(ventesFiltrees, rapportVentes.ca, rapportVentes.marge, rapportVentes.topProduits, rapportVentes.parMode, { debut: dateDebut, fin: dateFin })
+    else if (onglet === 'credits')
+      exportExcelCredits(rapportCredits.enRetard, rapportCredits.total)
+    else if (onglet === 'inventaire')
+      exportExcelInventaire(rapportInventaire.produits, rapportInventaire.valorisation)
+  }
+
+  // ── Exports Word ──────────────────────────────────────────────
+  const handleExportWord = async () => {
+    if (onglet === 'caisse')
+      await exportWordCaisse(rapportCaisse.ventesJour, rapportCaisse.especes, rapportCaisse.virement, rapportCaisse.credit, logoTata)
+    else if (onglet === 'ventes')
+      await exportWordVentes(ventesFiltrees, rapportVentes.ca, rapportVentes.marge, rapportVentes.topProduits, rapportVentes.parMode, { debut: dateDebut, fin: dateFin }, logoTata)
+    else if (onglet === 'credits')
+      await exportWordCredits(rapportCredits.enRetard, rapportCredits.total, logoTata)
+    else if (onglet === 'inventaire')
+      await exportWordInventaire(rapportInventaire.produits, rapportInventaire.valorisation, logoTata)
+  }
+
   const ONGLETS: { id: OngletType; label: string; icon: React.ElementType }[] = [
     { id: 'caisse',     label: 'Caisse Journalière',  icon: Wallet      },
     { id: 'ventes',     label: 'Analytique Ventes',   icon: TrendingUp  },
@@ -100,7 +142,7 @@ export function Rapports({ produits, ventes, clients }: RapportsProps) {
       <Topbar titre="Rapports" sous="4 rapports d'activité — Poissonnerie Tata" />
 
       <div className="flex-1 overflow-y-auto p-5 space-y-4">
-        {/* Onglets */}
+        {/* Onglets + Boutons export */}
         <div className="flex items-center gap-2 flex-wrap">
           {ONGLETS.map(o => (
             <button
@@ -114,12 +156,45 @@ export function Rapports({ produits, ventes, clients }: RapportsProps) {
               <o.icon size={13} /> {o.label}
             </button>
           ))}
-          <button
-            onClick={imprimerRapport}
-            className="ml-auto flex items-center gap-1.5 bg-[#1A365D] hover:bg-[#2A4A7F] text-white text-xs font-semibold px-4 py-2 rounded-xl cursor-pointer transition-colors border border-[#2A4A7F]"
-          >
-            <Printer size={13} /> Imprimer
-          </button>
+
+          {/* Groupe d'export */}
+          <div className="ml-auto flex items-center gap-2">
+            {/* PDF */}
+            <button
+              onClick={handleExportPDF}
+              title="Exporter en PDF"
+              className="flex items-center gap-1.5 bg-red-700 hover:bg-red-600 text-white text-xs font-semibold px-3 py-2 rounded-xl cursor-pointer transition-colors border border-red-600"
+            >
+              <FileDown size={13} /> PDF
+            </button>
+
+            {/* Excel */}
+            <button
+              onClick={handleExportExcel}
+              title="Exporter en Excel"
+              className="flex items-center gap-1.5 bg-green-700 hover:bg-green-600 text-white text-xs font-semibold px-3 py-2 rounded-xl cursor-pointer transition-colors border border-green-600"
+            >
+              <TableProperties size={13} /> Excel
+            </button>
+
+            {/* Word */}
+            <button
+              onClick={handleExportWord}
+              title="Exporter en Word"
+              className="flex items-center gap-1.5 bg-blue-700 hover:bg-blue-600 text-white text-xs font-semibold px-3 py-2 rounded-xl cursor-pointer transition-colors border border-blue-600"
+            >
+              <BookText size={13} /> Word
+            </button>
+
+            {/* Imprimer */}
+            <button
+              onClick={() => window.print()}
+              title="Imprimer"
+              className="flex items-center gap-1.5 bg-[#1A365D] hover:bg-[#2A4A7F] text-white text-xs font-semibold px-3 py-2 rounded-xl cursor-pointer transition-colors border border-[#2A4A7F]"
+            >
+              <Printer size={13} /> Imprimer
+            </button>
+          </div>
         </div>
 
         {/* Filtre dates — visible sur rapport ventes */}
