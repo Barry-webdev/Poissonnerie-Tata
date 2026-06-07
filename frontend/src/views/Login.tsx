@@ -15,7 +15,6 @@ export function Login() {
   
   const { user } = useAuth()
 
-  // Debug : afficher quand l'utilisateur est connecté
   useEffect(() => {
     if (user) {
       console.log('✅ Utilisateur connecté détecté dans Login:', user)
