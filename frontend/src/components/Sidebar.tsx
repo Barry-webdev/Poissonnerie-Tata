@@ -1,5 +1,5 @@
 import React from 'react'
-import logoTata from '../assets/logo.jpeg'
+import logoTata from '/logo.jpeg'
 import {
   LayoutDashboard, Package, ShoppingCart, CreditCard,
   Users, Thermometer, AlertTriangle, Settings,

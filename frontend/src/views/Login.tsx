@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react'
 import { signInWithEmailAndPassword } from 'firebase/auth'
 import { auth } from '../firebase/config'
 import { useAuth } from '../hooks/useAuth'
-import logoTata from '../assets/logo.jpeg'
+import logoTata from '/logo.jpeg'
 import { LogIn, AlertCircle, CheckCircle } from 'lucide-react'
 
 export function Login() {

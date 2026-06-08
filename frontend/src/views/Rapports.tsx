@@ -3,7 +3,7 @@ import { FileText, Printer, TrendingUp, Wallet, Users, Snowflake, FileDown, Tabl
 import { Topbar } from '../components/Topbar'
 import { Badge }  from '../components/Badge'
 import type { Produit, Vente, Client } from '../types/pos'
-import logoTata from '../assets/logo.jpeg'
+import logoTata from '/logo.jpeg'
 import {
   exportPDFCaisse, exportPDFVentes, exportPDFCredits, exportPDFInventaire,
   exportExcelCaisse, exportExcelVentes, exportExcelCredits, exportExcelInventaire,
